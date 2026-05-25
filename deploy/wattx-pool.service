@@ -1,0 +1,43 @@
+[Unit]
+Description=WATTx Merged Mining Pool
+After=network.target
+
+[Service]
+Type=simple
+User=nuts
+WorkingDirectory=/opt/wattx-pool/backend
+ExecStart=/usr/bin/node merged-pool.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wattx-pool
+
+# RPC credentials — edit these
+Environment=WATTX_RPC_HOST=127.0.0.1
+Environment=WATTX_RPC_PORT=1337
+Environment=WATTX_RPC_USER=wattx
+Environment=WATTX_RPC_PASS=wattx
+
+# Parent chain RPCs — uncomment and set when nodes are running
+# Environment=BTC_RPC_HOST=127.0.0.1
+# Environment=BTC_RPC_PORT=8332
+# Environment=LTC_RPC_HOST=127.0.0.1
+# Environment=LTC_RPC_PORT=9332
+# Environment=XMR_RPC_HOST=127.0.0.1
+# Environment=XMR_RPC_PORT=18081
+# Environment=DASH_RPC_HOST=127.0.0.1
+# Environment=DASH_RPC_PORT=9998
+# Environment=ZEC_RPC_HOST=127.0.0.1
+# Environment=ZEC_RPC_PORT=8232
+# Environment=ZEN_RPC_HOST=127.0.0.1
+# Environment=ZEN_RPC_PORT=18231
+# Environment=BTCZ_RPC_HOST=127.0.0.1
+# Environment=BTCZ_RPC_PORT=1979
+# Environment=KAS_RPC_HOST=127.0.0.1
+# Environment=KAS_RPC_PORT=16110
+# Environment=ALT_RPC_HOST=127.0.0.1
+# Environment=ALT_RPC_PORT=8545
+
+[Install]
+WantedBy=multi-user.target
