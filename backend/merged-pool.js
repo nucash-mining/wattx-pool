@@ -62,7 +62,7 @@ const config = {
     },
     ethash: {
       name: 'Ethash',
-      stratumPort: 3338,
+      stratumPort: 3333,
       parentChain: 'ALT',
       parentRpc: {
         host: process.env.ALT_RPC_HOST || '127.0.0.1',
@@ -75,7 +75,7 @@ const config = {
     },
     randomx: {
       name: 'RandomX',
-      stratumPort: 3339,
+      stratumPort: 3334,
       parentChain: 'XMR',
       parentRpc: {
         host: process.env.XMR_RPC_HOST || '127.0.0.1',

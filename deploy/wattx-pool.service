@@ -15,17 +15,20 @@ SyslogIdentifier=wattx-pool
 
 # RPC credentials — edit these
 Environment=WATTX_RPC_HOST=127.0.0.1
-Environment=WATTX_RPC_PORT=1337
-Environment=WATTX_RPC_USER=wattx
-Environment=WATTX_RPC_PASS=wattx
+Environment=WATTX_RPC_PORT=2337
+Environment=WATTX_RPC_USER=wattxrpc
+Environment=WATTX_RPC_PASS=v4AZR3AmHHbrMkRfhXlkWH6MI1bFeHwV
 
-# Parent chain RPCs — uncomment and set when nodes are running
+# XMR merged mining
+Environment=XMR_RPC_HOST=xmr.monerodice.pro
+Environment=XMR_RPC_PORT=18089
+Environment=XMR_POOL_WALLET=4AsjKppNcHfJPekAPKVMsecyVT1v35MVn4N6dsXYSVTZHWsmC66u3sDT5NYavm5udMXHf32Ntb4N2bJqhnN4Gfq2GKZYmMK
+
+# Other parent chain RPCs — uncomment and set when nodes are running
 # Environment=BTC_RPC_HOST=127.0.0.1
 # Environment=BTC_RPC_PORT=8332
 # Environment=LTC_RPC_HOST=127.0.0.1
 # Environment=LTC_RPC_PORT=9332
-# Environment=XMR_RPC_HOST=127.0.0.1
-# Environment=XMR_RPC_PORT=18081
 # Environment=DASH_RPC_HOST=127.0.0.1
 # Environment=DASH_RPC_PORT=9998
 # Environment=ZEC_RPC_HOST=127.0.0.1

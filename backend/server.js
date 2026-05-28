@@ -13,14 +13,16 @@ const path = require('path');
 const config = {
   port: process.env.PORT || 3001,
   wattxRpcHost: process.env.WATTX_RPC_HOST || '127.0.0.1',
-  wattxRpcPort: process.env.WATTX_RPC_PORT || 1337,
-  wattxRpcUser: process.env.WATTX_RPC_USER || 'wattx',
-  wattxRpcPass: process.env.WATTX_RPC_PASS || 'wattx',
-  stratumPort: process.env.STRATUM_PORT || 3335,
+  wattxRpcPort: process.env.WATTX_RPC_PORT || 2337,
+  wattxRpcUser: process.env.WATTX_RPC_USER || 'wattxrpc',
+  wattxRpcPass: process.env.WATTX_RPC_PASS || 'v4AZR3AmHHbrMkRfhXlkWH6MI1bFeHwV',
+  stratumPort: process.env.STRATUM_PORT || 3334,
   poolFee: 1.0, // 1% pool fee
   payoutThreshold: 0.1, // Minimum payout in WTX
-  payoutInterval: 3600, // Payout check every hour
-  poolWallet: process.env.POOL_WALLET || ''
+  payoutInterval: 3600, // Payout check every hour (seconds)
+  defaultBlockReward: 1.0, // WTX per block (used when reward is not known)
+  confirmationsRequired: 100, // Confirmations before a block is paid out
+  poolWallet: process.env.POOL_WALLET || 'WPTAXDteyU2U1u1LRLXzXiVUjxryeZkAEP'
 };
 
 // Initialize database
@@ -88,6 +90,10 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_shares_address ON shares(address);
     CREATE INDEX IF NOT EXISTS idx_workers_address ON workers(address);
   `);
+
+  // Add columns introduced after initial schema creation (safe to run every boot)
+  try { db.exec('ALTER TABLE blocks ADD COLUMN paid INTEGER DEFAULT 0'); } catch (_) {}
+  try { db.exec('ALTER TABLE payouts ADD COLUMN block_height INTEGER'); } catch (_) {}
 }
 
 // Express app setup
@@ -463,6 +469,77 @@ function calculatePendingBalance(totalDifficulty) {
   return estimatedBlocks * blockReward * (1 - config.poolFee / 100);
 }
 
+// ---- Block confirmation tracking ----
+async function updateBlockConfirmations() {
+  try {
+    const chainInfo = await wattxRpc('getblockchaininfo');
+    const currentHeight = chainInfo.blocks;
+    const unconfirmed = db.prepare('SELECT height FROM blocks WHERE confirmed = 0').all();
+    const stmt = db.prepare('UPDATE blocks SET confirmations = ?, confirmed = ? WHERE height = ?');
+    for (const { height } of unconfirmed) {
+      const confs = Math.max(0, currentHeight - height + 1);
+      stmt.run(confs, confs >= config.confirmationsRequired ? 1 : 0, height);
+    }
+  } catch (e) {
+    console.error('Block confirmation update failed:', e.message);
+  }
+}
+
+// ---- PROP payout loop ----
+async function processPayouts() {
+  const unpaidBlocks = db.prepare(
+    'SELECT * FROM blocks WHERE confirmed = 1 AND paid = 0'
+  ).all();
+
+  for (const block of unpaidBlocks) {
+    const reward = block.reward > 0 ? block.reward : config.defaultBlockReward;
+    const afterFee = reward * (1 - config.poolFee / 100);
+
+    // Shares submitted while mining this block height form the round
+    const roundShares = db.prepare(`
+      SELECT address, SUM(difficulty) AS total_diff
+      FROM shares
+      WHERE block_height = ? AND valid = 1
+      GROUP BY address
+    `).all(block.height);
+
+    const totalDiff = roundShares.reduce((s, r) => s + r.total_diff, 0);
+
+    if (totalDiff === 0) {
+      // No shares recorded for this round — mark paid to avoid retry loop
+      db.prepare('UPDATE blocks SET paid = 1 WHERE height = ?').run(block.height);
+      continue;
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    let roundFailed = false;
+
+    for (const miner of roundShares) {
+      const proportion = miner.total_diff / totalDiff;
+      const amount = parseFloat((afterFee * proportion).toFixed(8));
+      if (amount < config.payoutThreshold) continue;
+
+      try {
+        const txid = await wattxRpc('sendtoaddress', [miner.address, amount]);
+        db.prepare(`
+          INSERT INTO payouts (address, amount, timestamp, txid, status, block_height)
+          VALUES (?, ?, ?, ?, 'completed', ?)
+        `).run(miner.address, amount, timestamp, txid, block.height);
+        console.log(`Payout: ${amount} WTX → ${miner.address} (block ${block.height}, tx ${txid})`);
+        broadcast('payout', { address: miner.address, amount, txid, block_height: block.height });
+      } catch (e) {
+        console.error(`Payout failed for ${miner.address} (block ${block.height}): ${e.message}`);
+        roundFailed = true;
+      }
+    }
+
+    // Only mark paid if no errors; retry on next interval if any payout failed
+    if (!roundFailed) {
+      db.prepare('UPDATE blocks SET paid = 1 WHERE height = ?').run(block.height);
+    }
+  }
+}
+
 // Periodic stats recording
 setInterval(() => {
   const workerCount = db.prepare('SELECT COUNT(DISTINCT address) as count FROM workers WHERE last_seen > ?').get(Date.now() / 1000 - 600);
@@ -494,7 +571,14 @@ setInterval(() => {
     workers: workerCount?.count || 0,
     blocks: blocksFound?.count || 0
   });
+
+  updateBlockConfirmations();
 }, 60000); // Every minute
+
+// Payout loop — runs every payoutInterval seconds
+setInterval(() => {
+  processPayouts().catch((e) => console.error('processPayouts error:', e.message));
+}, config.payoutInterval * 1000);
 
 // Start server
 server.listen(config.port, () => {
