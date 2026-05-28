@@ -15,7 +15,7 @@ SyslogIdentifier=wattx-pool
 
 # RPC credentials — edit these
 Environment=WATTX_RPC_HOST=127.0.0.1
-Environment=WATTX_RPC_PORT=2337
+Environment=WATTX_RPC_PORT=3889
 Environment=WATTX_RPC_USER=wattxrpc
 Environment=WATTX_RPC_PASS=v4AZR3AmHHbrMkRfhXlkWH6MI1bFeHwV
 

@@ -13,7 +13,7 @@ const path = require('path');
 const config = {
   port: process.env.PORT || 3001,
   wattxRpcHost: process.env.WATTX_RPC_HOST || '127.0.0.1',
-  wattxRpcPort: process.env.WATTX_RPC_PORT || 2337,
+  wattxRpcPort: process.env.WATTX_RPC_PORT || 3889,
   wattxRpcUser: process.env.WATTX_RPC_USER || 'wattxrpc',
   wattxRpcPass: process.env.WATTX_RPC_PASS || 'v4AZR3AmHHbrMkRfhXlkWH6MI1bFeHwV',
   stratumPort: process.env.STRATUM_PORT || 3334,
